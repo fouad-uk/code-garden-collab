@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 
 interface PreviewPanelProps {
@@ -25,14 +24,13 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
     // Small delay to ensure iframe is ready
     setTimeout(() => {
       try {
-        // Use srcDoc instead of trying to access contentWindow.document directly
-        // This avoids cross-origin issues
+        // Use srcdoc instead of srcDoc (fixed typo)
         const html = generateHtml(code, language);
         
         if (iframeRef.current) {
           // Set sandbox attribute to limit iframe capabilities for security
           iframeRef.current.setAttribute('sandbox', 'allow-scripts');
-          iframeRef.current.srcDoc = html;
+          iframeRef.current.srcdoc = html;
         }
       } catch (err) {
         setError(`Error rendering preview: ${err instanceof Error ? err.message : 'Unknown error'}`);

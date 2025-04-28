@@ -11,11 +11,10 @@ import Terminal from '@/components/Terminal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
+  ResizablePanel,
+  ResizablePanelGroup,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 
 // Get room ID from URL or generate new one
 const getOrCreateRoomId = () => {
@@ -68,7 +67,6 @@ const Editor = () => {
 
   // Handle code execution
   const handleRunCode = () => {
-    // This is handled automatically in the preview component
     toast({
       description: "Code executed successfully",
     });
@@ -76,7 +74,6 @@ const Editor = () => {
 
   // Handle saving code
   const handleSaveCode = () => {
-    // In a real app, this would save to a database
     localStorage.setItem(`code-${roomId}`, code);
     toast({
       description: "Code saved successfully",
@@ -94,13 +91,11 @@ const Editor = () => {
   // Handle code changes
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
-    // In a real app, would broadcast changes to other users
   };
 
   // Handle language changes
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage);
-    // In a real app, would broadcast language change to other users
   };
 
   // Handle file selection
@@ -115,46 +110,52 @@ const Editor = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex flex-col h-screen overflow-hidden">
-        <Header 
-          roomId={roomId} 
-          activeUsers={activeUsers} 
-          onRun={handleRunCode} 
-          onSave={handleSaveCode} 
-        />
+    <div className="flex flex-col h-screen overflow-hidden">
+      <Header 
+        roomId={roomId} 
+        activeUsers={activeUsers} 
+        onRun={handleRunCode} 
+        onSave={handleSaveCode} 
+      />
+      
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* File Explorer Panel */}
+        <ResizablePanel defaultSize={15} minSize={10} maxSize={30} className="bg-card border-r border-border">
+          <FileExplorer 
+            onFileSelect={handleFileSelect}
+            selectedFileId={selectedFileId}
+          />
+        </ResizablePanel>
         
-        <div className="flex-1 flex overflow-hidden">
-          {/* File Explorer Sidebar */}
-          <Sidebar collapsible="icon" variant="sidebar">
-            <SidebarContent>
-              <FileExplorer 
-                onFileSelect={handleFileSelect}
-                selectedFileId={selectedFileId}
-              />
-            </SidebarContent>
-          </Sidebar>
-          
-          <SidebarTrigger />
-          
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+        <ResizableHandle withHandle />
+        
+        {/* Main Editor Panel */}
+        <ResizablePanel defaultSize={55} minSize={30}>
+          <ResizablePanelGroup direction="vertical">
             {/* Code Editor */}
-            <div className="flex-1 overflow-hidden">
+            <ResizablePanel defaultSize={75} minSize={30}>
               <CodeEditor 
                 initialCode={code} 
                 language={language}
                 onCodeChange={handleCodeChange}
                 onLanguageChange={handleLanguageChange}
               />
-            </div>
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
             
             {/* Terminal */}
-            <Terminal code={code} />
-          </div>
-          
-          {/* Right Panel (Preview/AI Assistant) */}
-          <div className="w-1/3 border-l border-border flex flex-col">
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={50}>
+              <Terminal code={code} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+        
+        <ResizableHandle withHandle />
+        
+        {/* Right Panel (Preview/AI Assistant) */}
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+          <div className="flex flex-col h-full">
             <div className="border-b border-border p-1">
               <Tabs defaultValue="preview" className="w-full">
                 <TabsList className="w-full">
@@ -184,9 +185,9 @@ const Editor = () => {
               )}
             </div>
           </div>
-        </div>
-      </div>
-    </SidebarProvider>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 };
 

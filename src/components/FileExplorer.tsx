@@ -5,8 +5,18 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
+// Define the FileNode interface explicitly with proper types
+interface FileNode {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  expanded?: boolean;
+  language?: string;
+  children?: FileNode[];
+}
+
 // Mock file structure - in a real app, this would come from a backend
-const initialFiles = [
+const initialFiles: FileNode[] = [
   {
     id: '1',
     name: 'Project',
@@ -48,15 +58,6 @@ const initialFiles = [
     ]
   }
 ];
-
-interface FileNode {
-  id: string;
-  name: string;
-  type: 'file' | 'folder';
-  expanded?: boolean;
-  language?: string;
-  children?: FileNode[];
-}
 
 interface FileExplorerProps {
   onFileSelect: (file: FileNode) => void;
