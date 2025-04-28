@@ -1,0 +1,133 @@
+
+import React, { useEffect, useRef } from 'react';
+
+type PreviewPanelProps = {
+  code: string;
+  language: string;
+};
+
+const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const runCode = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+
+    if (language === 'html') {
+      iframeDoc.open();
+      iframeDoc.write(code);
+      iframeDoc.close();
+    } else if (language === 'javascript') {
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>JavaScript Preview</title>
+          </head>
+          <body>
+            <div id="output"></div>
+            <script>
+              // Override console methods
+              const output = document.getElementById('output');
+              const originalConsole = console;
+              console = {
+                ...originalConsole,
+                log: function(...args) {
+                  originalConsole.log(...args);
+                  const el = document.createElement('div');
+                  el.textContent = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+                  ).join(' ');
+                  output.appendChild(el);
+                },
+                error: function(...args) {
+                  originalConsole.error(...args);
+                  const el = document.createElement('div');
+                  el.style.color = 'red';
+                  el.textContent = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+                  ).join(' ');
+                  output.appendChild(el);
+                }
+              };
+              
+              try {
+                ${code}
+              } catch (err) {
+                console.error(err.message);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+    } else if (language === 'css') {
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>CSS Preview</title>
+            <style>${code}</style>
+          </head>
+          <body>
+            <div class="example">Example Div</div>
+            <p>Example paragraph with <a href="#">link</a></p>
+            <button>Example Button</button>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+    } else {
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Preview</title>
+          </head>
+          <body>
+            <div style="padding: 20px; font-family: sans-serif;">
+              <h3>Code (${language}):</h3>
+              <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto;">${
+                code.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              }</pre>
+              <p style="color: #666;">Preview not available for ${language}</p>
+            </div>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+    }
+  };
+
+  // Update preview when code or language changes
+  useEffect(() => {
+    runCode();
+  }, [code, language]);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="bg-card p-2 border-b border-border">
+        <h3 className="font-medium text-sm">Preview</h3>
+      </div>
+      <div className="flex-1 bg-white">
+        <iframe
+          ref={iframeRef}
+          title="code-preview"
+          className="w-full h-full border-none"
+          sandbox="allow-scripts allow-modals"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default PreviewPanel;
