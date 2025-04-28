@@ -112,10 +112,10 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
       console.error("Failed to access iframe content:", e);
       
       // Create a fallback display when iframe access is blocked
-      if (iframe) {
-        const fallbackDoc = document.createElement('div');
-        fallbackDoc.className = "flex items-center justify-center h-full bg-white p-4";
-        fallbackDoc.innerHTML = `
+      if (iframe && iframe.parentElement) {
+        const fallbackDiv = document.createElement('div');
+        fallbackDiv.className = "flex items-center justify-center h-full bg-white p-4";
+        fallbackDiv.innerHTML = `
           <div class="text-center">
             <h3 class="font-medium mb-2">Preview Unavailable</h3>
             <p class="text-muted-foreground text-sm">
@@ -126,11 +126,9 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
         `;
         
         // Clear iframe parent and append fallback
-        const parent = iframe.parentNode;
-        if (parent) {
-          parent.innerHTML = '';
-          parent.appendChild(fallbackDoc);
-        }
+        const parent = iframe.parentElement;
+        parent.innerHTML = '';
+        parent.appendChild(fallbackDiv);
       }
     }
   };

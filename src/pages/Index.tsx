@@ -1,114 +1,49 @@
 
-import React, { useState, useEffect } from 'react';
-import Header from '@/components/Header';
-import CodeEditor from '@/components/CodeEditor';
-import PreviewPanel from '@/components/PreviewPanel';
-import ResizableLayout from '@/components/ResizableLayout';
-import { generateRoomId } from '@/utils/generateRoomId';
-import { useToast } from '@/components/ui/use-toast';
-
-// Get room ID from URL or generate new one
-const getOrCreateRoomId = () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomParam = urlParams.get('room');
-  
-  if (roomParam) {
-    return roomParam;
-  }
-  
-  const newRoomId = generateRoomId();
-  // Update URL with the new room ID
-  const url = new URL(window.location.href);
-  url.searchParams.set('room', newRoomId);
-  window.history.pushState({}, '', url);
-  
-  return newRoomId;
-};
-
-const DEFAULT_CODE = `function helloWorld() {
-  console.log("Hello from CodeGarden!");
-  
-  // Try modifying this code and see the results
-  // in the preview panel on the right
-  const colors = ["red", "green", "blue"];
-  colors.forEach(color => {
-    console.log(\`I love \${color}!\`);
-  });
-}
-
-helloWorld();`;
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import HeroSection from '@/components/landing/HeroSection';
+import FeaturesSection from '@/components/landing/FeaturesSection';
+import TestimonialsSection from '@/components/landing/TestimonialsSection';
+import FooterSection from '@/components/landing/FooterSection';
+import Navbar from '@/components/landing/Navbar';
 
 const Index = () => {
-  const { toast } = useToast();
-  const [roomId] = useState(getOrCreateRoomId);
-  const [code, setCode] = useState(DEFAULT_CODE);
-  const [language, setLanguage] = useState('javascript');
-  const [activeUsers] = useState(2); // Mock value for demo
-
-  // Handle code execution
-  const handleRunCode = () => {
-    // This is handled automatically in the preview component
-    toast({
-      description: "Code executed successfully",
-    });
-  };
-
-  // Handle saving code
-  const handleSaveCode = () => {
-    // In a real app, this would save to a database
-    localStorage.setItem(`code-${roomId}`, code);
-    toast({
-      description: "Code saved successfully",
-    });
-  };
-
-  // Check for saved code on component mount
-  useEffect(() => {
-    const savedCode = localStorage.getItem(`code-${roomId}`);
-    if (savedCode) {
-      setCode(savedCode);
-    }
-  }, [roomId]);
-
-  // Handle code changes
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-    // In a real app, would broadcast changes to other users
-  };
-
-  // Handle language changes
-  const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage);
-    // In a real app, would broadcast language change to other users
-  };
-
   return (
-    <div className="flex flex-col h-screen">
-      <Header 
-        roomId={roomId} 
-        activeUsers={activeUsers} 
-        onRun={handleRunCode} 
-        onSave={handleSaveCode} 
-      />
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
       
-      <div className="flex-1 overflow-hidden">
-        <ResizableLayout 
-          left={
-            <CodeEditor 
-              initialCode={code} 
-              language={language}
-              onCodeChange={handleCodeChange}
-              onLanguageChange={handleLanguageChange}
-            />
-          }
-          right={
-            <PreviewPanel 
-              code={code} 
-              language={language}
-            />
-          }
-        />
-      </div>
+      <main className="flex-grow">
+        <HeroSection />
+        <FeaturesSection />
+        <TestimonialsSection />
+        
+        {/* CTA Section */}
+        <section className="py-20 px-4 text-center bg-card">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+              Start Coding Together Today
+            </h2>
+            <p className="text-lg mb-8 text-muted-foreground max-w-2xl mx-auto">
+              Join thousands of developers who are already collaborating and building amazing projects together on CodeGarden.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/signup">
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  Create Free Account
+                </Button>
+              </Link>
+              <Link to="/editor">
+                <Button size="lg" variant="outline" className="border-primary hover:bg-primary/10">
+                  Try Editor Now
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+      
+      <FooterSection />
     </div>
   );
 };
