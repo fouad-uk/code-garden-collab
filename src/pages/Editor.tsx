@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import CodeEditor from '@/components/CodeEditor';
 import PreviewPanel from '@/components/PreviewPanel';
 import { generateRoomId } from '@/utils/generateRoomId';
 import { useToast } from '@/hooks/use-toast';
+import { Toast } from "@/components/ui/toast";
 import FileExplorer from '@/components/FileExplorer';
 import AiAssistant from '@/components/AiAssistant';
 import Terminal from '@/components/Terminal';
@@ -24,7 +25,14 @@ import {
   X,
   Users,
   Zap,
+  PanelTop,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  Move,
+  Maximize,
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Get room ID from URL or generate new one
 const getOrCreateRoomId = () => {
@@ -84,15 +92,17 @@ const Editor = () => {
   const [rightPanelView, setRightPanelView] = useState<'preview' | 'assistant'>('preview');
   const [showFileExplorer, setShowFileExplorer] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
-  const [showTerminal, setShowTerminal] = useState(true);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [showTopPanel, setShowTopPanel] = useState(false);
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editorLayout, setEditorLayout] = useState<'normal' | 'zen'>('normal');
+  const [isDragging, setIsDragging] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   // Handle code execution
   const handleRunCode = useCallback(() => {
     toast({
       description: "Code executed successfully",
-      icon: <Zap size={16} className="text-yellow-500" />
     });
   }, [toast]);
 
@@ -101,7 +111,6 @@ const Editor = () => {
     localStorage.setItem(`code-${roomId}`, code);
     toast({
       description: "Code saved successfully",
-      icon: <Save size={16} className="text-green-500" />
     });
   }, [code, roomId, toast]);
 
@@ -182,6 +191,7 @@ const Editor = () => {
       setShowFileExplorer(false);
       setShowRightPanel(false);
       setShowTerminal(false);
+      setShowTopPanel(false);
     } else {
       // Exit zen mode - restore panels
       setShowFileExplorer(true);
@@ -196,7 +206,7 @@ const Editor = () => {
       items: [
         {
           id: "file-explorer",
-          icon: <FolderOpen className="h-4 w-4" />,
+          icon: <PanelLeft className="h-4 w-4" />,
           label: `${showFileExplorer ? 'Hide' : 'Show'} File Explorer`,
           shortcut: "Ctrl+B",
           action: () => setShowFileExplorer(prev => !prev),
@@ -204,18 +214,25 @@ const Editor = () => {
         },
         {
           id: "terminal",
-          icon: <TerminalSquare className="h-4 w-4" />,
+          icon: <PanelBottom className="h-4 w-4" />,
           label: `${showTerminal ? 'Hide' : 'Show'} Terminal`,
           shortcut: "Ctrl+J",
           action: () => setShowTerminal(prev => !prev),
           active: showTerminal
         },
         {
-          id: "preview",
-          icon: <LayoutPanelLeft className="h-4 w-4" />,
+          id: "right-panel",
+          icon: <PanelRight className="h-4 w-4" />,
           label: `${showRightPanel ? 'Hide' : 'Show'} ${rightPanelView === 'preview' ? 'Preview' : 'Assistant'}`,
           action: () => setShowRightPanel(prev => !prev),
           active: showRightPanel
+        },
+        {
+          id: "top-panel",
+          icon: <PanelTop className="h-4 w-4" />,
+          label: `${showTopPanel ? 'Hide' : 'Show'} Top Panel`,
+          action: () => setShowTopPanel(prev => !prev),
+          active: showTopPanel
         },
         {
           id: "zen-mode",
@@ -248,6 +265,60 @@ const Editor = () => {
     }
   ];
 
+  // Render a panel toggle button
+  const renderPanelToggleButton = (
+    isVisible: boolean,
+    onClick: () => void,
+    icon: React.ReactNode,
+    title: string
+  ) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="secondary"
+            size="icon"
+            className="rounded-full shadow-lg animate-fade-in"
+            onClick={onClick}
+          >
+            {icon}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{title}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
+  // Main code editor component
+  const CodeEditorComponent = (
+    <div className="flex-1 overflow-hidden relative">
+      <CodeEditor 
+        initialCode={code} 
+        language={language}
+        onCodeChange={handleCodeChange}
+        onLanguageChange={handleLanguageChange}
+      />
+    </div>
+  );
+
+  // Get right panel content based on the current view
+  const getRightPanelContent = () => {
+    return rightPanelView === 'preview' ? (
+      <PreviewPanel code={code} language={language} />
+    ) : (
+      <AiAssistant />
+    );
+  };
+
+  // Get top panel content - can be expanded to show different tools
+  const getTopPanelContent = () => (
+    <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+      <p>Optional top panel for future tools</p>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       <Header 
@@ -258,162 +329,120 @@ const Editor = () => {
       />
       
       <div className="flex-1 flex overflow-hidden relative">
-        {/* File Explorer */}
-        {showFileExplorer && (
-          <div className="w-64 h-full border-r border-border bg-card/50 flex flex-col">
-            <FileExplorer 
-              onFileSelect={handleFileSelect}
-              selectedFileId={selectedFileId}
-              onClose={() => setShowFileExplorer(false)}
+        <ResizableLayout
+          left={<FileExplorer onFileSelect={handleFileSelect} selectedFileId={selectedFileId} />}
+          right={getRightPanelContent()}
+          top={getTopPanelContent()}
+          bottom={<Terminal code={code} />}
+          center={<div className="h-full flex flex-col">
+            <EditorToolbar 
+              activeUsers={activeUsers} 
+              onToggleTerminal={() => setShowTerminal(!showTerminal)}
+              showingTerminal={showTerminal}
             />
-          </div>
-        )}
-        
-        {/* Main Editor Area with optional terminal */}
-        <div className="flex-1 h-full flex flex-col overflow-hidden">
-          <EditorToolbar 
-            activeUsers={activeUsers} 
-            onToggleTerminal={() => setShowTerminal(!showTerminal)}
-            showingTerminal={showTerminal}
-          />
-          
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-hidden relative">
-              <CodeEditor 
-                initialCode={code} 
-                language={language}
-                onCodeChange={handleCodeChange}
-                onLanguageChange={handleLanguageChange}
-              />
-            </div>
-            
-            {/* Terminal Panel */}
-            {showTerminal && (
-              <div className="h-48 border-t border-border relative">
-                <Terminal code={code} />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-70 hover:opacity-100 z-10"
-                  onClick={() => setShowTerminal(false)}
-                >
-                  <X size={14} />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Right Panel (Preview or AI Assistant) */}
-        {showRightPanel && (
-          <div className="w-96 h-full border-l border-border bg-card/50 flex flex-col">
-            <div className="border-b border-border p-1">
-              <Tabs 
-                defaultValue={rightPanelView}
-                value={rightPanelView}
-                onValueChange={(value) => setRightPanelView(value as 'preview' | 'assistant')}
-                className="w-full"
-              >
-                <div className="flex items-center justify-between">
-                  <TabsList className="w-full grid grid-cols-2">
-                    <TabsTrigger 
-                      value="preview" 
-                      className="transition-all data-[state=active]:animate-fade-in"
-                    >
-                      Preview
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="assistant" 
-                      className="transition-all data-[state=active]:animate-fade-in"
-                    >
-                      AI Assistant
-                    </TabsTrigger>
-                  </TabsList>
-                  <Button 
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 ml-1"
-                    onClick={() => setShowRightPanel(false)}
-                  >
-                    <X size={14} />
-                  </Button>
-                </div>
-              </Tabs>
-            </div>
-            
-            <div className="flex-1 overflow-hidden">
-              {rightPanelView === 'preview' ? (
-                <PreviewPanel code={code} language={language} />
-              ) : (
-                <AiAssistant />
-              )}
-            </div>
-          </div>
-        )}
+            {CodeEditorComponent}
+          </div>}
+          showLeftPanel={showFileExplorer}
+          showRightPanel={showRightPanel}
+          showTopPanel={showTopPanel}
+          showBottomPanel={showTerminal}
+          onToggleLeftPanel={() => setShowFileExplorer(!showFileExplorer)}
+          onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+          onToggleTopPanel={() => setShowTopPanel(!showTopPanel)}
+          onToggleBottomPanel={() => setShowTerminal(!showTerminal)}
+          leftPanelTitle="Explorer"
+          rightPanelTitle={rightPanelView === 'preview' ? 'Preview' : 'AI Assistant'}
+          bottomPanelTitle="Terminal"
+          topPanelTitle="Tools"
+        />
       </div>
       
       {/* Floating Action Buttons */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         {!showFileExplorer && (
-          <Button 
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg animate-fade-in"
-            onClick={() => setShowFileExplorer(true)}
-            title="Show File Explorer"
-          >
-            <FolderOpen size={18} />
-          </Button>
+          renderPanelToggleButton(
+            showFileExplorer,
+            () => setShowFileExplorer(true),
+            <PanelLeft size={18} />,
+            "Show File Explorer"
+          )
         )}
         
         {!showTerminal && (
-          <Button 
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg animate-fade-in"
-            onClick={() => setShowTerminal(true)}
-            title="Show Terminal"
-          >
-            <TerminalSquare size={18} />
-          </Button>
+          renderPanelToggleButton(
+            showTerminal,
+            () => setShowTerminal(true),
+            <PanelBottom size={18} />,
+            "Show Terminal"
+          )
         )}
         
         {!showRightPanel && (
-          <Button 
-            variant="secondary"
-            size="icon"
-            className="rounded-full shadow-lg animate-fade-in"
-            onClick={() => setShowRightPanel(true)}
-            title={`Show ${rightPanelView === 'preview' ? 'Preview' : 'AI Assistant'}`}
-          >
-            <LayoutPanelLeft size={18} />
-          </Button>
+          renderPanelToggleButton(
+            showRightPanel,
+            () => setShowRightPanel(true),
+            <PanelRight size={18} />,
+            `Show ${rightPanelView === 'preview' ? 'Preview' : 'AI Assistant'}`
+          )
         )}
         
-        <Button 
-          variant="secondary"
-          size="icon"
-          className="rounded-full shadow-lg animate-fade-in"
-          onClick={toggleZenMode}
-          title={editorLayout === 'normal' ? "Enter Zen Mode" : "Exit Zen Mode"}
-        >
-          {editorLayout === 'normal' ? <Maximize2 size={18} /> : <MinusSquare size={18} />}
-        </Button>
+        {!showTopPanel && (
+          renderPanelToggleButton(
+            showTopPanel,
+            () => setShowTopPanel(true),
+            <PanelTop size={18} />,
+            "Show Top Panel"
+          )
+        )}
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="secondary"
+                size="icon"
+                className="rounded-full shadow-lg animate-fade-in"
+                onClick={toggleZenMode}
+              >
+                {editorLayout === 'normal' ? <Maximize2 size={18} /> : <MinusSquare size={18} />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{editorLayout === 'normal' ? "Enter Zen Mode" : "Exit Zen Mode"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       
       {/* Active users indicator */}
       <div className="absolute bottom-4 left-4">
-        <Button 
-          variant="secondary"
-          size="icon"
-          className="rounded-full shadow-lg relative"
-          title={`${activeUsers.length} active users`}
-        >
-          <Users size={18} />
-          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
-            {activeUsers.length}
-          </span>
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="secondary"
+                size="icon"
+                className="rounded-full shadow-lg relative"
+              >
+                <Users size={18} />
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
+                  {activeUsers.length}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{activeUsers.length} active users</p>
+              <div className="mt-1 space-y-1">
+                {activeUsers.map(user => (
+                  <div key={user.id} className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: user.color }}></div>
+                    <span className="text-xs">{user.username}</span>
+                  </div>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       
       {/* Command Palette */}
