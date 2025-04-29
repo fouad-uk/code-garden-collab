@@ -1,4 +1,6 @@
+
 import React, { useEffect, useRef, useState } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface PreviewPanelProps {
   code: string;
@@ -9,6 +11,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { theme } = useTheme();
 
   useEffect(() => {
     // Don't try to render if not JavaScript or HTML
@@ -24,8 +27,8 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
     // Small delay to ensure iframe is ready
     setTimeout(() => {
       try {
-        // Use srcdoc instead of srcDoc (fixed typo)
-        const html = generateHtml(code, language);
+        // Generate HTML with theme awareness
+        const html = generateHtml(code, language, theme);
         
         if (iframeRef.current) {
           // Set sandbox attribute to limit iframe capabilities for security
@@ -38,12 +41,17 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
         setIsLoading(false);
       }
     }, 100);
-  }, [code, language]);
+  }, [code, language, theme]);
 
-  const generateHtml = (code: string, language: string): string => {
+  const generateHtml = (code: string, language: string, currentTheme: string): string => {
     if (language === 'html') {
       return code;
     }
+
+    // Background and text colors based on theme
+    const bgColor = currentTheme === 'dark' ? '#1e1e2e' : '#ffffff';
+    const textColor = currentTheme === 'dark' ? '#ffffff' : '#333333';
+    const outputBgColor = currentTheme === 'dark' ? '#2a2a3a' : '#f5f5f5';
 
     // Wrap JavaScript/TypeScript in HTML document
     return `
@@ -57,16 +65,18 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ code, language }) => {
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
               margin: 20px;
-              color: white;
-              background-color: #1e1e2e;
+              color: ${textColor};
+              background-color: ${bgColor};
+              transition: background-color 0.3s ease, color 0.3s ease;
             }
             .output {
               padding: 10px;
-              background-color: #2a2a3a;
+              background-color: ${outputBgColor};
               border-radius: 4px;
               margin-top: 10px;
               white-space: pre-wrap;
               font-family: monospace;
+              transition: background-color 0.3s ease;
             }
           </style>
         </head>

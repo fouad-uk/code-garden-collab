@@ -5,6 +5,7 @@ import {
   ResizablePanelGroup,
   ResizableHandle,
 } from '@/components/ui/resizable';
+import EditorToolbar from './EditorToolbar';
 
 type ResizableLayoutProps = {
   left: React.ReactNode;
@@ -12,6 +13,7 @@ type ResizableLayoutProps = {
   initialLeftWidth?: number;
   minLeftWidth?: number;
   maxLeftWidth?: number;
+  children?: React.ReactNode;
 };
 
 const ResizableLayout: React.FC<ResizableLayoutProps> = ({
@@ -20,24 +22,33 @@ const ResizableLayout: React.FC<ResizableLayoutProps> = ({
   initialLeftWidth = 50,
   minLeftWidth = 30,
   maxLeftWidth = 70,
+  children,
 }) => {
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel 
-        defaultSize={initialLeftWidth} 
-        minSize={minLeftWidth} 
-        maxSize={maxLeftWidth}
-        className="h-full overflow-hidden"
-      >
-        {left}
-      </ResizablePanel>
+    <div className="flex flex-col h-full">
+      {children && (
+        <div className="w-full border-b border-border">
+          {children}
+        </div>
+      )}
       
-      <ResizableHandle withHandle />
-      
-      <ResizablePanel className="h-full overflow-hidden">
-        {right}
-      </ResizablePanel>
-    </ResizablePanelGroup>
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanel 
+          defaultSize={initialLeftWidth} 
+          minSize={minLeftWidth} 
+          maxSize={maxLeftWidth}
+          className="h-full overflow-hidden"
+        >
+          {left}
+        </ResizablePanel>
+        
+        <ResizableHandle withHandle />
+        
+        <ResizablePanel className="h-full overflow-hidden">
+          {right}
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 };
 

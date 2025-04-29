@@ -92,6 +92,7 @@
 
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -118,12 +119,49 @@
     }
   }
 
+  /* Animation for scale effect */
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Animation for spotlight effect */
+  @keyframes spotlight {
+    0%, 100% {
+      opacity: 1;
+      filter: brightness(1);
+    }
+    50% {
+      opacity: 0.8;
+      filter: brightness(1.2);
+    }
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.6s ease-out forwards;
   }
 
+  .animate-scale-in {
+    animation: scaleIn 0.4s ease-out forwards;
+  }
+
   .animate-cursor-blink {
     animation: blink 1s infinite;
+  }
+
+  .animate-spotlight {
+    animation: spotlight 2s infinite;
+  }
+
+  /* Glassmorphism effect */
+  .glass {
+    @apply backdrop-blur-lg bg-background/70 border border-white/10;
   }
 }
 
@@ -155,4 +193,9 @@
 
 .user-label {
   @apply absolute text-xs px-2 py-0.5 rounded-sm text-white pointer-events-none whitespace-nowrap -mt-6;
+}
+
+/* Theme transition effects */
+.transition-theme {
+  @apply transition-all duration-300 ease-in-out;
 }

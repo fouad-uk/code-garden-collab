@@ -4,6 +4,7 @@ import * as monaco from 'monaco-editor';
 import UserCursor from './UserCursor';
 import UserSelection from './UserSelection';
 import LanguageSelector from './LanguageSelector';
+import { useTextSize } from '@/hooks/useTextSize';
 
 // Define mock remote users for preview purposes
 const MOCK_REMOTE_USERS = [
@@ -39,6 +40,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [remoteUsers] = useState(MOCK_REMOTE_USERS);
+  const { textSize } = useTextSize();
+  
+  // Map text size to Monaco editor font size
+  const getFontSize = () => {
+    switch (textSize) {
+      case 'sm': return 12;
+      case 'md': return 14;
+      case 'lg': return 16;
+      default: return 14;
+    }
+  };
   
   // Initialize Monaco Editor
   useEffect(() => {
@@ -52,7 +64,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           enabled: false
         },
         scrollBeyondLastLine: false,
-        fontSize: 14,
+        fontSize: getFontSize(),
         padding: {
           top: 10,
           bottom: 10
@@ -74,6 +86,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       };
     }
   }, [initialCode, onCodeChange]);
+
+  // Update font size when text size changes
+  useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.updateOptions({
+        fontSize: getFontSize()
+      });
+    }
+  }, [textSize]);
 
   // Update language when it changes
   useEffect(() => {
