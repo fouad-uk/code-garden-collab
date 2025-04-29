@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { 
   FolderOpen, 
   TerminalSquare, 
-  Panelize, 
+  LayoutPanelLeft, 
   Maximize,
   MinusSquare,
   Plus,
@@ -343,7 +343,7 @@ const Editor = () => {
             onClick={() => setShowRightPanel(true)}
             title="Show Preview/Assistant"
           >
-            <Panelize size={18} />
+            <LayoutPanelLeft size={18} />
           </Button>
         )}
         
@@ -391,7 +391,7 @@ const Editor = () => {
                   setCommandDialogOpen(false);
                 }}
               >
-                <Panelize className="mr-2 h-4 w-4" />
+                <LayoutPanelLeft className="mr-2 h-4 w-4" />
                 <span>{showRightPanel ? 'Hide' : 'Show'} Preview/Assistant</span>
               </CommandItem>
             </CommandGroup>

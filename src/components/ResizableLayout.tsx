@@ -51,6 +51,7 @@ const ResizableLayout: React.FC<ResizableLayoutProps> = ({
               minSize={minLeftWidth} 
               maxSize={maxLeftWidth}
               className="h-full overflow-hidden relative"
+              id="left-panel"
             >
               {left}
               {onToggleLeftPanel && (
@@ -86,7 +87,7 @@ const ResizableLayout: React.FC<ResizableLayoutProps> = ({
         
         {/* Right panel with toggle button */}
         {showRightPanel ? (
-          <ResizablePanel className="h-full overflow-hidden relative">
+          <ResizablePanel className="h-full overflow-hidden relative" id="right-panel">
             {right}
             {onToggleRightPanel && (
               <div className="absolute top-2 right-2 z-10">
