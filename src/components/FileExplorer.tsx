@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Folder, File, ChevronRight, ChevronDown, FilePlus, FolderPlus, Search, X, Trash, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -91,6 +91,17 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Search debouncing for better performance
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Focus on search input when pressing Ctrl+F
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,6 +114,43 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Memoized filtered files based on search query
+  const filteredFiles = useMemo(() => {
+    if (!debouncedSearchQuery) return files;
+
+    const searchLower = debouncedSearchQuery.toLowerCase();
+    
+    // Helper function to recursively filter files and folders
+    const filterNodes = (nodes: FileNode[]): FileNode[] => {
+      return nodes.reduce<FileNode[]>((acc, node) => {
+        // Check if current node matches
+        const nodeMatches = node.name.toLowerCase().includes(searchLower);
+        
+        // For folders, also check children
+        if (node.type === 'folder' && node.children) {
+          const filteredChildren = filterNodes(node.children);
+          
+          // If node matches or any children match, include this node
+          if (nodeMatches || filteredChildren.length > 0) {
+            acc.push({
+              ...node,
+              expanded: true, // Always expand folders when searching
+              children: filteredChildren
+            });
+          }
+        } 
+        // For files, just check if it matches
+        else if (node.type === 'file' && nodeMatches) {
+          acc.push(node);
+        }
+        
+        return acc;
+      }, []);
+    };
+    
+    return filterNodes(files);
+  }, [debouncedSearchQuery, files]);
 
   const toggleFolder = (id: string) => {
     const toggleNode = (nodes: FileNode[]): FileNode[] => {
@@ -154,6 +202,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
     
     const newFiles = deleteNode(files);
     setFiles(newFiles);
+    
+    // If the currently selected file is deleted, clear selection
+    if (nodeId === selectedFileId) {
+      onFileSelect({ id: '', name: '', type: 'file' });
+    }
     
     toast({
       description: "Item deleted successfully",
@@ -232,21 +285,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
 
   const renderFileTree = (nodes: FileNode[], level = 0) => {
     return nodes.map(node => {
-      // Filter based on search
-      if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        if (!node.children?.some(child => {
-          const childMatches = child.name.toLowerCase().includes(searchQuery.toLowerCase());
-          if (child.children && !childMatches) {
-            return child.children.some(grandChild => 
-              grandChild.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-          }
-          return childMatches;
-        })) {
-          return null;
-        }
-      }
-
       const isSelected = node.id === selectedFileId;
 
       if (node.type === 'folder') {
@@ -332,8 +370,16 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
           </ContextMenu>
         );
       }
-    }).filter(Boolean);
+    });
   };
+
+  // Show empty state when search returns no results
+  const renderEmptySearchState = () => (
+    <div className="flex flex-col items-center justify-center h-32 text-center">
+      <Search className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
+      <p className="text-sm text-muted-foreground">No files or folders match your search</p>
+    </div>
+  );
 
   return (
     <div className="h-full flex flex-col">
@@ -393,7 +439,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, selectedFileI
         </div>
       </div>
       <div className="overflow-y-auto flex-1 py-2">
-        {renderFileTree(files)}
+        {filteredFiles.length > 0 
+          ? renderFileTree(filteredFiles) 
+          : renderEmptySearchState()
+        }
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

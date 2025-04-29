@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import CodeEditor from '@/components/CodeEditor';
 import PreviewPanel from '@/components/PreviewPanel';
@@ -9,33 +9,22 @@ import FileExplorer from '@/components/FileExplorer';
 import AiAssistant from '@/components/AiAssistant';
 import Terminal from '@/components/Terminal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  ResizablePanel,
-  ResizablePanelGroup,
-  ResizableHandle,
-} from '@/components/ui/resizable';
+import ResizableLayout from '@/components/ResizableLayout';
 import EditorToolbar from '@/components/EditorToolbar';
 import { Button } from '@/components/ui/button';
+import CommandPalette from '@/components/CommandPalette';
 import { 
   FolderOpen, 
   TerminalSquare, 
   LayoutPanelLeft, 
-  Maximize,
+  Maximize2,
   MinusSquare,
-  Plus,
-  X
+  Play,
+  Save,
+  X,
+  Users,
+  Zap,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { 
-  CommandDialog, 
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandShortcut,
-} from "@/components/ui/command";
 
 // Get room ID from URL or generate new one
 const getOrCreateRoomId = () => {
@@ -100,19 +89,21 @@ const Editor = () => {
   const [editorLayout, setEditorLayout] = useState<'normal' | 'zen'>('normal');
 
   // Handle code execution
-  const handleRunCode = () => {
+  const handleRunCode = useCallback(() => {
     toast({
       description: "Code executed successfully",
+      icon: <Zap size={16} className="text-yellow-500" />
     });
-  };
+  }, [toast]);
 
   // Handle saving code
-  const handleSaveCode = () => {
+  const handleSaveCode = useCallback(() => {
     localStorage.setItem(`code-${roomId}`, code);
     toast({
       description: "Code saved successfully",
+      icon: <Save size={16} className="text-green-500" />
     });
-  };
+  }, [code, roomId, toast]);
 
   // Check for saved code on component mount
   useEffect(() => {
@@ -134,6 +125,8 @@ const Editor = () => {
 
   // Handle file selection
   const handleFileSelect = (file: FileNode) => {
+    if (!file.id) return; // Skip if file has no ID
+    
     setSelectedFileId(file.id);
     if (file.language) {
       setLanguage(file.language);
@@ -163,30 +156,100 @@ const Editor = () => {
       
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        setEditorLayout(prev => prev === 'normal' ? 'zen' : 'normal');
+        toggleZenMode();
+      }
+      
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveCode();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleRunCode();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleRunCode, handleSaveCode]);
   
   // Toggle zen mode
   const toggleZenMode = () => {
     setEditorLayout(prev => prev === 'normal' ? 'zen' : 'normal');
     if (editorLayout === 'normal') {
+      // Enter zen mode - hide panels
       setShowFileExplorer(false);
       setShowRightPanel(false);
       setShowTerminal(false);
     } else {
+      // Exit zen mode - restore panels
       setShowFileExplorer(true);
       setShowRightPanel(true);
-      setShowTerminal(true);
     }
   };
+  
+  // Command palette items
+  const commandItems = [
+    {
+      type: "View",
+      items: [
+        {
+          id: "file-explorer",
+          icon: <FolderOpen className="h-4 w-4" />,
+          label: `${showFileExplorer ? 'Hide' : 'Show'} File Explorer`,
+          shortcut: "Ctrl+B",
+          action: () => setShowFileExplorer(prev => !prev),
+          active: showFileExplorer
+        },
+        {
+          id: "terminal",
+          icon: <TerminalSquare className="h-4 w-4" />,
+          label: `${showTerminal ? 'Hide' : 'Show'} Terminal`,
+          shortcut: "Ctrl+J",
+          action: () => setShowTerminal(prev => !prev),
+          active: showTerminal
+        },
+        {
+          id: "preview",
+          icon: <LayoutPanelLeft className="h-4 w-4" />,
+          label: `${showRightPanel ? 'Hide' : 'Show'} ${rightPanelView === 'preview' ? 'Preview' : 'Assistant'}`,
+          action: () => setShowRightPanel(prev => !prev),
+          active: showRightPanel
+        },
+        {
+          id: "zen-mode",
+          icon: editorLayout === 'normal' ? <Maximize2 className="h-4 w-4" /> : <MinusSquare className="h-4 w-4" />,
+          label: `${editorLayout === 'normal' ? 'Enter' : 'Exit'} Zen Mode`,
+          shortcut: "Ctrl+K",
+          action: toggleZenMode,
+          active: editorLayout === 'zen'
+        }
+      ]
+    },
+    {
+      type: "Actions",
+      items: [
+        {
+          id: "run-code",
+          icon: <Play className="h-4 w-4" />,
+          label: "Run Code",
+          shortcut: "Ctrl+Enter",
+          action: handleRunCode
+        },
+        {
+          id: "save-code",
+          icon: <Save className="h-4 w-4" />,
+          label: "Save Code",
+          shortcut: "Ctrl+S",
+          action: handleSaveCode
+        }
+      ]
+    }
+  ];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
       <Header 
         roomId={roomId} 
         activeUsers={activeUsers.length} 
@@ -194,128 +257,108 @@ const Editor = () => {
         onSave={handleSaveCode} 
       />
       
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* File Explorer Panel */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* File Explorer */}
         {showFileExplorer && (
-          <>
-            <ResizablePanel 
-              defaultSize={20} 
-              minSize={15} 
-              maxSize={30}
-              className="h-full overflow-hidden"
-            >
-              <FileExplorer 
-                onFileSelect={handleFileSelect}
-                selectedFileId={selectedFileId}
-                onClose={() => setShowFileExplorer(false)}
-              />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-          </>
+          <div className="w-64 h-full border-r border-border bg-card/50 flex flex-col">
+            <FileExplorer 
+              onFileSelect={handleFileSelect}
+              selectedFileId={selectedFileId}
+              onClose={() => setShowFileExplorer(false)}
+            />
+          </div>
         )}
         
-        {/* Main Editor Area */}
-        <ResizablePanel
-          className="flex flex-col"
-        >
+        {/* Main Editor Area with optional terminal */}
+        <div className="flex-1 h-full flex flex-col overflow-hidden">
           <EditorToolbar 
             activeUsers={activeUsers} 
             onToggleTerminal={() => setShowTerminal(!showTerminal)}
             showingTerminal={showTerminal}
           />
           
-          <ResizablePanelGroup direction="horizontal" className="flex-1">
-            {/* Code Editor */}
-            <ResizablePanel defaultSize={70} className="h-full overflow-hidden">
-              <div className="flex flex-col h-full">
-                <CodeEditor 
-                  initialCode={code} 
-                  language={language}
-                  onCodeChange={handleCodeChange}
-                  onLanguageChange={handleLanguageChange}
-                />
-                
-                {/* Terminal Panel */}
-                {showTerminal && (
-                  <>
-                    <ResizablePanelGroup direction="vertical">
-                      <ResizableHandle withHandle />
-                      <ResizablePanel defaultSize={25} minSize={10} maxSize={40} className="relative">
-                        <Terminal code={code} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-70 hover:opacity-100"
-                          onClick={() => setShowTerminal(false)}
-                        >
-                          <X size={14} />
-                        </Button>
-                      </ResizablePanel>
-                    </ResizablePanelGroup>
-                  </>
-                )}
-              </div>
-            </ResizablePanel>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-hidden relative">
+              <CodeEditor 
+                initialCode={code} 
+                language={language}
+                onCodeChange={handleCodeChange}
+                onLanguageChange={handleLanguageChange}
+              />
+            </div>
             
-            {/* Preview/AI Assistant Panel */}
-            {showRightPanel ? (
-              <>
-                <ResizableHandle withHandle />
-                <ResizablePanel className="h-full overflow-hidden">
-                  <div className="flex flex-col h-full">
-                    <div className="border-b border-border p-1">
-                      <div className="flex items-center justify-between">
-                        <Tabs defaultValue={rightPanelView} className="w-full">
-                          <TabsList className="w-full grid grid-cols-2">
-                            <TabsTrigger 
-                              value="preview" 
-                              onClick={() => setRightPanelView('preview')}
-                              className="transition-all data-[state=active]:animate-fade-in"
-                            >
-                              Preview
-                            </TabsTrigger>
-                            <TabsTrigger 
-                              value="assistant" 
-                              onClick={() => setRightPanelView('assistant')}
-                              className="transition-all data-[state=active]:animate-fade-in"
-                            >
-                              AI Assistant
-                            </TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                        <Button 
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 ml-1"
-                          onClick={() => setShowRightPanel(false)}
-                        >
-                          <X size={14} />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 overflow-hidden">
-                      {rightPanelView === 'preview' ? (
-                        <PreviewPanel code={code} language={language} />
-                      ) : (
-                        <AiAssistant />
-                      )}
-                    </div>
-                  </div>
-                </ResizablePanel>
-              </>
-            ) : null}
-          </ResizablePanelGroup>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+            {/* Terminal Panel */}
+            {showTerminal && (
+              <div className="h-48 border-t border-border relative">
+                <Terminal code={code} />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-70 hover:opacity-100 z-10"
+                  onClick={() => setShowTerminal(false)}
+                >
+                  <X size={14} />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Right Panel (Preview or AI Assistant) */}
+        {showRightPanel && (
+          <div className="w-96 h-full border-l border-border bg-card/50 flex flex-col">
+            <div className="border-b border-border p-1">
+              <Tabs 
+                defaultValue={rightPanelView}
+                value={rightPanelView}
+                onValueChange={(value) => setRightPanelView(value as 'preview' | 'assistant')}
+                className="w-full"
+              >
+                <div className="flex items-center justify-between">
+                  <TabsList className="w-full grid grid-cols-2">
+                    <TabsTrigger 
+                      value="preview" 
+                      className="transition-all data-[state=active]:animate-fade-in"
+                    >
+                      Preview
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="assistant" 
+                      className="transition-all data-[state=active]:animate-fade-in"
+                    >
+                      AI Assistant
+                    </TabsTrigger>
+                  </TabsList>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 ml-1"
+                    onClick={() => setShowRightPanel(false)}
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              </Tabs>
+            </div>
+            
+            <div className="flex-1 overflow-hidden">
+              {rightPanelView === 'preview' ? (
+                <PreviewPanel code={code} language={language} />
+              ) : (
+                <AiAssistant />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
       
-      {/* Floating Action Buttons when panels are closed */}
+      {/* Floating Action Buttons */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         {!showFileExplorer && (
           <Button 
             variant="secondary"
             size="icon"
-            className="rounded-full shadow-lg"
+            className="rounded-full shadow-lg animate-fade-in"
             onClick={() => setShowFileExplorer(true)}
             title="Show File Explorer"
           >
@@ -327,7 +370,7 @@ const Editor = () => {
           <Button 
             variant="secondary"
             size="icon"
-            className="rounded-full shadow-lg"
+            className="rounded-full shadow-lg animate-fade-in"
             onClick={() => setShowTerminal(true)}
             title="Show Terminal"
           >
@@ -339,9 +382,9 @@ const Editor = () => {
           <Button 
             variant="secondary"
             size="icon"
-            className="rounded-full shadow-lg"
+            className="rounded-full shadow-lg animate-fade-in"
             onClick={() => setShowRightPanel(true)}
-            title="Show Preview/Assistant"
+            title={`Show ${rightPanelView === 'preview' ? 'Preview' : 'AI Assistant'}`}
           >
             <LayoutPanelLeft size={18} />
           </Button>
@@ -350,131 +393,37 @@ const Editor = () => {
         <Button 
           variant="secondary"
           size="icon"
-          className="rounded-full shadow-lg"
+          className="rounded-full shadow-lg animate-fade-in"
           onClick={toggleZenMode}
           title={editorLayout === 'normal' ? "Enter Zen Mode" : "Exit Zen Mode"}
         >
-          {editorLayout === 'normal' ? <Maximize size={18} /> : <MinusSquare size={18} />}
+          {editorLayout === 'normal' ? <Maximize2 size={18} /> : <MinusSquare size={18} />}
         </Button>
       </div>
       
-      {/* Command Dialog for quick actions */}
-      <CommandDialog open={commandDialogOpen} onOpenChange={setCommandDialogOpen}>
-        <Command>
-          <CommandInput placeholder="Type a command or search..." />
-          <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup heading="View">
-              <CommandItem 
-                onSelect={() => {
-                  setShowFileExplorer(prev => !prev);
-                  setCommandDialogOpen(false);
-                }}
-              >
-                <FolderOpen className="mr-2 h-4 w-4" />
-                <span>{showFileExplorer ? 'Hide' : 'Show'} File Explorer</span>
-                <CommandShortcut>Ctrl+B</CommandShortcut>
-              </CommandItem>
-              <CommandItem 
-                onSelect={() => {
-                  setShowTerminal(prev => !prev);
-                  setCommandDialogOpen(false);
-                }}
-              >
-                <TerminalSquare className="mr-2 h-4 w-4" />
-                <span>{showTerminal ? 'Hide' : 'Show'} Terminal</span>
-                <CommandShortcut>Ctrl+J</CommandShortcut>
-              </CommandItem>
-              <CommandItem 
-                onSelect={() => {
-                  setShowRightPanel(prev => !prev);
-                  setCommandDialogOpen(false);
-                }}
-              >
-                <LayoutPanelLeft className="mr-2 h-4 w-4" />
-                <span>{showRightPanel ? 'Hide' : 'Show'} Preview/Assistant</span>
-              </CommandItem>
-            </CommandGroup>
-            <CommandGroup heading="Actions">
-              <CommandItem 
-                onSelect={() => {
-                  toggleZenMode();
-                  setCommandDialogOpen(false);
-                }}
-              >
-                {editorLayout === 'normal' ? (
-                  <Maximize className="mr-2 h-4 w-4" />
-                ) : (
-                  <MinusSquare className="mr-2 h-4 w-4" />
-                )}
-                <span>{editorLayout === 'normal' ? 'Enter' : 'Exit'} Zen Mode</span>
-                <CommandShortcut>Ctrl+K</CommandShortcut>
-              </CommandItem>
-              <CommandItem 
-                onSelect={() => {
-                  handleRunCode();
-                  setCommandDialogOpen(false);
-                }}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                <span>Run Code</span>
-              </CommandItem>
-              <CommandItem 
-                onSelect={() => {
-                  handleSaveCode();
-                  setCommandDialogOpen(false);
-                }}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                <span>Save Code</span>
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </CommandDialog>
+      {/* Active users indicator */}
+      <div className="absolute bottom-4 left-4">
+        <Button 
+          variant="secondary"
+          size="icon"
+          className="rounded-full shadow-lg relative"
+          title={`${activeUsers.length} active users`}
+        >
+          <Users size={18} />
+          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
+            {activeUsers.length}
+          </span>
+        </Button>
+      </div>
+      
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={commandDialogOpen}
+        onOpenChange={setCommandDialogOpen}
+        commands={commandItems}
+      />
     </div>
   );
 };
 
 export default Editor;
-
-// Icons to import
-function Play(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
-  );
-}
-
-function Save(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
-    </svg>
-  );
-}

@@ -37,7 +37,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const { textSize, setTextSize } = useTextSize();
 
   return (
-    <div className="w-full flex items-center justify-between px-3 py-1.5 bg-card/40 backdrop-blur-sm transition-all duration-300">
+    <div className="w-full flex items-center justify-between px-3 py-1.5 bg-card/40 backdrop-blur-sm transition-all duration-300 border-b border-border">
       <div className="flex items-center gap-4">
         <div>
           <ToggleGroup type="single" value={theme} onValueChange={(value) => {
@@ -157,12 +157,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button 
-                variant="ghost" 
+                variant={showingTerminal ? "outline" : "ghost"} 
                 size="icon"
                 onClick={onToggleTerminal}
                 className={cn(
                   "h-8 w-8 transition-all",
-                  showingTerminal && "bg-muted text-foreground"
+                  showingTerminal && "border-primary/30"
                 )}
               >
                 <AlignJustify size={16} />
@@ -196,7 +196,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Active Users</DropdownMenuLabel>
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>Active Users</span>
+              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {activeUsers.length} online
+              </span>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             {activeUsers.map((user) => (
               <DropdownMenuItem key={user.id} className="flex items-center gap-2">
@@ -209,7 +214,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <span>{user.username}</span>
+                <span className="flex-1">{user.username}</span>
+                <div 
+                  className="h-2 w-2 rounded-full bg-green-500"
+                  title="Online"
+                />
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
