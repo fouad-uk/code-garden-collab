@@ -4,27 +4,40 @@ import { useTheme } from '@/hooks/useTheme';
 import { useTextSize } from '@/hooks/useTextSize';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Sun, Moon, CircleUser, AlignJustify } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Sun, Moon, CircleUser, AlignJustify, X } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface EditorToolbarProps {
   activeUsers?: Array<{
     id: string;
     username: string;
     color: string;
+    avatar?: string;
   }>;
+  onToggleTerminal?: () => void;
+  showingTerminal?: boolean;
 }
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({ 
-  activeUsers = [] 
+  activeUsers = [],
+  onToggleTerminal,
+  showingTerminal 
 }) => {
   const { theme, setTheme } = useTheme();
   const { textSize, setTextSize } = useTextSize();
 
   return (
-    <div className="w-full flex items-center justify-between px-3 py-1.5">
+    <div className="w-full flex items-center justify-between px-3 py-1.5 bg-card/40 backdrop-blur-sm transition-all duration-300">
       <div className="flex items-center gap-4">
         <div>
           <ToggleGroup type="single" value={theme} onValueChange={(value) => {
@@ -139,21 +152,68 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </Tooltip>
           </ToggleGroup>
         </div>
+        
+        {onToggleTerminal && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onToggleTerminal}
+                className={cn(
+                  "h-8 w-8 transition-all",
+                  showingTerminal && "bg-muted text-foreground"
+                )}
+              >
+                <AlignJustify size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Toggle Terminal</TooltipContent>
+          </Tooltip>
+        )}
       </div>
       
-      <div className="flex items-center -space-x-2">
-        {activeUsers.map((user) => (
-          <Tooltip key={user.id}>
-            <TooltipTrigger asChild>
-              <Avatar className="h-7 w-7 border-2 border-background transition-all hover:scale-110 hover:z-10">
-                <AvatarFallback style={{ backgroundColor: user.color }}>
-                  {user.username.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </TooltipTrigger>
-            <TooltipContent>{user.username}</TooltipContent>
-          </Tooltip>
-        ))}
+      <div className="flex items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center -space-x-2 cursor-pointer">
+              {activeUsers.map((user, idx) => (
+                <Avatar key={user.id} className={cn(
+                  "h-7 w-7 border-2 border-background transition-all hover:scale-110 hover:z-10",
+                  idx === 0 && "z-3",
+                  idx === 1 && "z-2",
+                  idx === 2 && "z-1"
+                )}>
+                  {user.avatar ? (
+                    <AvatarImage src={user.avatar} alt={user.username} />
+                  ) : (
+                    <AvatarFallback style={{ backgroundColor: user.color }}>
+                      {user.username.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              ))}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Active Users</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {activeUsers.map((user) => (
+              <DropdownMenuItem key={user.id} className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  {user.avatar ? (
+                    <AvatarImage src={user.avatar} alt={user.username} />
+                  ) : (
+                    <AvatarFallback style={{ backgroundColor: user.color }}>
+                      {user.username.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <span>{user.username}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
