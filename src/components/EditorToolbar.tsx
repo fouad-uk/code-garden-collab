@@ -27,7 +27,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     <div className="w-full flex items-center justify-between px-3 py-1.5">
       <div className="flex items-center gap-4">
         <div>
-          <ToggleGroup type="single" value={theme} onValueChange={(value) => value && setTheme(value)}>
+          <ToggleGroup type="single" value={theme} onValueChange={(value) => {
+            // Make sure value is of type Theme before setting
+            if (value === 'light' || value === 'dark' || value === 'system') {
+              setTheme(value);
+            }
+          }}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <ToggleGroupItem 
@@ -79,7 +84,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </div>
         
         <div>
-          <ToggleGroup type="single" value={textSize} onValueChange={(value) => value && setTextSize(value)}>
+          <ToggleGroup type="single" value={textSize} onValueChange={(value) => {
+            // Make sure value is of type TextSize before setting
+            if (value === 'sm' || value === 'md' || value === 'lg') {
+              setTextSize(value);
+            }
+          }}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <ToggleGroupItem 
